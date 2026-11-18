@@ -1,0 +1,175 @@
+---
+title: "linear regression"
+author: "Mutangana cyprien"
+date: "2026-11-18"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+##1. data loading 
+
+```{r cars}
+dfm <- read.csv("student_scores.csv")
+
+head(dfm)          # first 6 rows
+str(dfm)           # variable types
+summary(dfm)       # min, quartiles, mean, max for each column
+colSums(is.na(dfm))
+
+```
+
+
+```{r cars}
+head(dfm) 
+```
+
+
+```{r cars}
+str(dfm)   
+```
+
+
+```{r cars}
+summary(dfm)
+
+```
+
+### to identify and count missing values
+```{r cars}
+colSums(is.na(dfm))
+```
+
+##### Explore and describe numerical variables with histogram
+
+```{r cars}
+hist(dfm$exam_score,
+     main = "Distribution of exam scores",
+     xlab = "Exam score", col = "steelblue")
+
+plot(dfm$hours_studied, dfm$exam_score,
+     main = "Hours studied vs exam score",
+     xlab = "Hours studied", ylab = "Exam score",
+     pch = 19, col = "steelblue")
+```
+###box plot numerical variable description
+```{r cars}
+
+boxplot(dfm$exam_score, horizontal = TRUE,
+        main = "Exam scores", col = "lightblue")
+plot(dfm$hours_studied, dfm$exam_score,
+     main = "Hours studied vs exam score",
+     xlab = "Hours studied", ylab = "Exam score",
+     pch = 19, col = "steelblue")
+
+```
+
+
+### Explore relationship, between studied hours vs scored in Exam
+
+```{r cars}
+# Correlation: strength and direction of the linear relationship
+cor(dfm$hours_studied, dfm$exam_score)
+```
+#### Explore correlation matrix for all numeric predictors
+
+```{r cars}
+# Correlation matrix for all numeric predictors
+cor(dfm[, c("hours_studied", "sleep_hours",
+           "attendance_pct", "exam_score")])
+```
+
+###  Simple linear regression model(one predictor)
+```{r cars}
+# Model: exam_score = b0 + b1 * hours_studied + error
+model1 <- lm(exam_score ~ hours_studied, data = dfm)
+
+summary(model1)   # coefficients, R-squared, F-test, p-values
+coef(model1)      # just the intercept and slope
+confint(model1)   # 95% confidence intervals for coefficients
+
+# Draw the fitted line on the scatter plot
+plot(dfm$hours_studied, dfm$exam_score,
+     main = "Simple linear regression",
+     xlab = "Hours studied", ylab = "Exam score",
+     pch = 19, col = "steelblue")
+abline(model1, col = "red", lwd = 2)
+
+```
+##### prediction
+
+```{r cars}
+new_students <- data.frame(hours_studied = c(2, 5, 8))
+
+# Predicted mean score, with a 95% prediction interval
+predict(model1, newdata = new_students, interval = "prediction")
+```
+#### CHECK THE ASSUMPTIONS (residual diagnostics) 
+
+```{r cars}
+#  ASSUMPTIONS (residual diagnostics)
+par(mfrow = c(2, 2))   # 2x2 grid of plots
+plot(model1)
+par(mfrow = c(1, 1))   # reset
+
+# 1) Residuals vs Fitted : random cloud around 0 -> linearity OK
+# 2) Normal Q-Q          : points on the line     -> normal errors
+# 3) Scale-Location      : flat band              -> constant variance
+# 4) Residuals vs Leverage: no point beyond Cook's distance lines
+
+shapiro.test(residuals(model1))   # p > 0.05 -> residuals look normal
+
+```
+
+### MULTIPLE LINEAR REGRESSION (several predictors)
+
+```{r cars}
+#MULTIPLE LINEAR REGRESSION (several predictors) -----------
+# Model: exam_score = b0 + b1*hours + b2*sleep + b3*attendance
+model2 <- lm(exam_score ~ hours_studied + sleep_hours + attendance_pct,
+             data = dfm)
+
+summary(model2)
+confint(model2)
+
+# Compare the two models
+anova(model1, model2)   # does adding predictors improve the fit?
+AIC(model1, model2)     # lower is better
+BIC(model1, model2)     # lower is better
+```
+
+### TRAIN / TEST SPLIT: HOW WELL DOES IT PREDICT NEW DATA?
+
+```{r cars}
+
+set.seed(123)
+train_idx <- sample(seq_len(nrow(dfm)), size = 0.8 * nrow(dfm))
+train <- dfm[train_idx, ]
+test  <- dfm[-train_idx, ]
+
+model_train <- lm(exam_score ~ hours_studied + sleep_hours + attendance_pct,
+                  data = train)
+pred <- predict(model_train, newdata = test)
+
+rmse <- sqrt(mean((test$exam_score - pred)^2))   # typical error size
+mae  <- mean(abs(test$exam_score - pred))
+r2_test <- 1 - sum((test$exam_score - pred)^2) /
+               sum((test$exam_score - mean(test$exam_score))^2)
+
+cat("Test RMSE:", round(rmse, 2), "\n")
+cat("Test MAE :", round(mae, 2), "\n")
+cat("Test R2  :", round(r2_test, 3), "\n")
+
+# Actual vs predicted: points should sit near the diagonal
+plot(test$exam_score, pred,
+     xlab = "Actual", ylab = "Predicted",
+     main = "Actual vs predicted (test set)", pch = 19, col = "steelblue")
+abline(0, 1, col = "red", lwd = 2)
+
+```
+
+
+```{r cars}
